@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Koordineringsplan – delt visning</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>:root{
+  --paper:#F5F7FA; --surface:#FFFFFF; --surface-2:#EEF2F6; --ink:#1B2430; --muted:#5B6B7C;
+  --line:#D8DEE6; --line-strong:#B9C3CE; --accent:#2B6CB0; --accent-soft:#E7F0FA;
+  --danger:#C4432B; --ok:#2F7A52; --focus:#2B6CB0;
+  --font-display:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --label-w:168px; --header-h:60px; --title-h:46px; --row-h:34px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141A21; --surface:#1B222B; --surface-2:#212A34; --ink:#E9EDF2; --muted:#95A3B3;
+    --line:#2E3944; --line-strong:#3D4B58; --accent:#6CA9E0; --accent-soft:#22384C;
+    --danger:#E28066; --ok:#6FBE93; --focus:#6CA9E0; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141A21; --surface:#1B222B; --surface-2:#212A34; --ink:#E9EDF2; --muted:#95A3B3;
+  --line:#2E3944; --line-strong:#3D4B58; --accent:#6CA9E0; --accent-soft:#22384C;
+  --danger:#E28066; --ok:#6FBE93; --focus:#6CA9E0; color-scheme:dark;
+}
+*{box-sizing:border-box;}
+body{background:var(--paper); color:var(--ink); font-family:var(--font-display); -webkit-font-smoothing:antialiased; margin:0;}
+.app{max-width:1360px; margin:0 auto; padding:30px 26px 70px;}
+h1,h2{margin:0;}
+.titlebar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+.titlebar h1{font-size:1.5rem; font-weight:600;}
+.badge{font-family:var(--font-mono); font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; background:var(--accent-soft); color:var(--accent); padding:3px 9px; border-radius:20px; font-weight:700;}
+.lede{color:var(--muted); font-size:.9rem; max-width:70ch; margin:8px 0 18px;}
+.legend{display:flex; flex-wrap:wrap; gap:16px 26px; margin-bottom:14px;}
+.legend .group{display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
+.legend .glabel{font-family:var(--font-mono); font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; color:var(--muted);}
+.chip{display:inline-flex; align-items:center; gap:6px; font-size:.78rem; padding:3px 9px 3px 7px; border-radius:20px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink);}
+.chip em{font-style:normal; color:var(--muted); font-size:.72rem;}
+.legend .group.activity-list{flex-direction:column; align-items:flex-start; gap:6px; width:100%;}
+.activity-items{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; width:100%;}
+.activity-item{display:flex; flex-direction:column; gap:2px;}
+.activity-row{display:flex; align-items:center; gap:6px; font-size:.78rem; color:var(--ink); font-weight:500;}
+.activity-desc{font-size:.72rem; color:var(--muted); padding-left:20px; line-height:1.35;}
+.swatch{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
+.fagchip{font-family:var(--font-mono); font-size:.76rem; font-weight:600; padding:5px 12px; border-radius:20px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); cursor:pointer;}
+.fagchip[aria-pressed="true"]{color:#fff; border-color:transparent;}
+.hint-text{font-size:.78rem; color:var(--muted); margin:0;}
+.mydeadlines{border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:12px 16px; margin-bottom:16px;}
+.mydeadlines h2{font-size:.92rem; font-weight:600; margin-bottom:8px;}
+.mydeadlines table{width:100%; border-collapse:collapse; font-size:.84rem;}
+.mydeadlines td{padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top;}
+.mydeadlines tr:last-child td{border-bottom:none;}
+.mydeadlines .tag{font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 5px; margin-left:6px;}
+.timeline-card{border:1px solid var(--line); border-radius:16px; background:var(--surface); overflow:hidden; box-shadow:0 1px 2px rgba(20,26,33,.04);}
+.timeline-scroll{overflow-x:auto; overflow-y:hidden;}
+.timeline-inner{position:relative;}
+.ruler-row{display:flex; border-bottom:1px solid var(--line); background:var(--surface);}
+.corner-cell{flex:0 0 var(--label-w); width:var(--label-w); position:sticky; left:0; z-index:4; background:var(--surface); border-right:1px solid var(--line); display:flex; align-items:center; padding:0 14px; font-family:var(--font-mono); font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);}
+.ruler-track{position:relative; flex:1; height:var(--header-h);}
+.ruler-track::before{content:""; position:absolute; left:0; right:0; top:21px; height:1px; background:var(--line); opacity:0.6; pointer-events:none;}
+.month-tick{position:absolute; top:0; bottom:0; z-index:1;}
+.month-tick .tline{width:1px; height:100%; background:var(--line-strong); opacity:0.55;}
+.month-tick .mlabel{position:absolute; top:4px; left:5px; font-family:var(--font-display); font-weight:700; font-size:.72rem; color:var(--ink); white-space:nowrap; text-transform:capitalize;}
+.week-tick{position:absolute; top:0; bottom:0;}
+.week-tick .tline{width:1px; height:100%; background:var(--line); opacity:0.4;}
+.week-tick .wlabel{position:absolute; top:25px; left:4px; font-family:var(--font-mono); font-size:.62rem; color:var(--muted); opacity:0.85; white-space:nowrap;}
+.today-flag{position:absolute; top:4px; transform:translateX(-50%); font-family:var(--font-mono); font-size:.64rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; background:var(--accent); color:#fff; padding:2px 6px; border-radius:5px; white-space:nowrap; z-index:2;}
+.cross-flag{position:absolute; top:44px; transform:translateX(-50%); font-family:var(--font-mono); font-size:.64rem; font-weight:600; background:var(--ink); color:var(--surface); padding:2px 7px; border-radius:5px; white-space:nowrap; max-width:160px; overflow:hidden; text-overflow:ellipsis; z-index:1; cursor:pointer;}
+.cross-flag-info{background:var(--surface-2); color:var(--muted); border:1px solid var(--line); font-style:italic;}
+.cross-flag-span{transform:none; text-align:center; max-width:none; overflow:visible; text-overflow:clip; border-radius:9px; box-sizing:border-box;}
+.grid-overlay{position:absolute; left:var(--label-w); top:var(--header-h); z-index:0; pointer-events:none;}
+.cross-overlay{position:absolute; left:var(--label-w); top:var(--header-h); z-index:1; pointer-events:none;}
+.area-row{display:flex; border-top:1px solid var(--line);}
+.area-label{flex:0 0 var(--label-w); width:var(--label-w); position:sticky; left:0; z-index:2; background:var(--surface); border-right:1px solid var(--line);}
+.area-title{height:var(--title-h); display:flex; align-items:center; gap:9px; padding:0 14px; font-weight:600; font-size:.86rem; border-bottom:1px solid var(--line);}
+.area-title .idx{font-family:var(--font-mono); font-size:.68rem; color:var(--accent); background:var(--accent-soft); border-radius:5px; padding:1px 6px; font-weight:700;}
+.fag-row-label{height:var(--row-h); display:flex; align-items:center; gap:8px; padding:0 14px 0 18px; font-family:var(--font-mono); font-size:.74rem; color:var(--muted); border-bottom:1px dashed var(--line); transition:background .15s,color .15s;}
+.fag-row-label:last-child{border-bottom:none;}
+.fag-row-label.fag-highlight{background:var(--accent-soft); color:var(--ink); font-weight:600;}
+.fag-dot{width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
+.area-canvas{flex:1; position:relative;}
+.area-canvas svg{display:block;}
+.hit{cursor:pointer;}
+.dimmed{opacity:.15;}
+.fag-focus{filter:drop-shadow(0 0 3px var(--accent));}
+.snapshot-note{font-size:.78rem; color:var(--muted); margin-top:18px;}
+.popover{position:fixed; z-index:20; max-width:260px; background:var(--surface); border:1px solid var(--line-strong); border-radius:10px; box-shadow:0 8px 24px rgba(20,26,33,.18); padding:10px 26px 10px 12px; font-size:.82rem; color:var(--ink);}
+.popover-close{position:absolute; top:2px; right:4px; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:1.05rem; line-height:1; padding:4px 7px;}
+.popover-close:hover{color:var(--danger);}
+.popover-body b{display:block; margin-bottom:3px;}
+.popover-body .pv-line{display:block; color:var(--muted); font-size:.78rem;}
+.popover-body .pv-desc{display:block; color:var(--ink); font-size:.8rem; margin-top:6px; font-style:italic;}
+@media (max-width:640px){ .app{padding:20px 14px 50px;} }
+@media print{
+  @page{ size: landscape; margin: 10mm; }
+  body{ background:#fff; }
+  .app{ max-width:none; padding:0; }
+  .badge, .popover, .mydeadlines{ display:none !important; }
+  .timeline-scroll{ overflow:visible !important; }
+  .area-row{ break-inside:avoid; }
+}</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar"><h1>Koordineringsplan</h1><span class="badge">Delt visning &middot; skrivebeskyttet</span></div>
+  <p class="lede">Klik på et symbol i planen for at se aktivitetens navn og dato. Vælg dit fag nedenfor for at fremhæve og se en liste over alle dine deadlines.</p>
+  <div class="legend" id="legendEl"></div>
+  <div id="mydeadlinesEl"></div>
+  <div class="timeline-card"><div class="timeline-scroll" id="timelineScroll"><div class="timeline-inner" id="timelineInner"></div></div></div>
+  <p class="snapshot-note">Eksporteret 7. sep 2026 kl. 11:24 fra koordineringsplanen. Denne visning er et øjebliksbillede og opdateres ikke automatisk &ndash; bed om en ny delt visning hvis planen ændrer sig.</p>
+</div>
+<div class="popover" id="popoverEl" hidden>
+  <button type="button" class="popover-close" id="popoverClose">&times;</button>
+  <div class="popover-body" id="popoverBody"></div>
+</div>
+<script>(function(){
+  "use strict";
+  var state = {"projectName":"Koordineringsplan","areas":[{"id":"s2","label":"S2"},{"id":"s4s5","label":"S4/S5"},{"id":"mq8vikihamtn1pb0x","label":"N1/N2"},{"id":"spine","label":"Spine / Teknik-etage"},{"id":"s1s3","label":"S1/S3"}],"phases":[{"id":"klar","label":"Loft klarmeldt","kind":"perFag","description":"Installationer i loft er placeret i modellen iht. de aftalte principper."},{"id":"kollision","label":"KK loft","kind":"shared","deadline":false,"description":"Kollisionskontrol for installationer i loft udføres."},{"id":"opret","label":"Loft oprettet","kind":"perFag","description":"Installationer i loft er oprettet efter udført kollisionskontrol."},{"id":"mlirck4rzmtmom42w","label":"Adgang over loft workshop","kind":"shared","deadline":false,"description":"Workshop hvor adgangsforhold if. udførelse og drift gennemgås for området."},{"id":"mgl22a97umtmotxj5","label":"Over loft oprettet","kind":"perFag","description":"Installationer over loft er oprettet iht. de aftaler indgået til workshop."},{"id":"mibgvuazomtmovdbz","label":"KK","kind":"shared","deadline":false,"description":"Kollisionskontrol for området udføres of Issues tildeles fagene."},{"id":"mav33xbpymtmoveln","label":"Alt oprettet","kind":"perFag","description":"Alle kollisioner tildelt under kollisionskontrollen er behandlet."},{"id":"aflever","label":"Område afsluttet","kind":"shared","description":"Modelarbejdet for området er afsluttet hvad der angår geometrisk koordinering."}],"fags":[{"id":"mtktk7c96mtmq8ikv","label":"LYS","color":"#6B4FA0"},{"id":"hvac","label":"HVAC","color":"#2B8C8C"},{"id":"spr","label":"SPR","color":"#2B6CB0"},{"id":"vvs","label":"VVS","color":"#C4432B"},{"id":"cu","label":"CU","color":"#B7791F"},{"id":"el","label":"EL","color":"#4F7942"},{"id":"m1hzcbdspmtmq8p2x","label":"SIKR","color":"#B5487A"}],"milestones":[{"id":"ms5n0uwkwmtmolros","area":"s2","phase":"klar","fags":["mtktk7c96mtmq8ikv","hvac","spr"],"date":"2026-09-18","fagDates":{"mtktk7c96mtmq8ikv":"2026-09-14","hvac":"2026-09-15","spr":"2026-09-16"},"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":null,"duration":0},"hvac":{"dependsOn":{"mid":"ms5n0uwkwmtmolros","fag":"mtktk7c96mtmq8ikv"},"duration":1},"spr":{"dependsOn":{"mid":"ms5n0uwkwmtmolros","fag":"hvac"},"duration":1}},"doneFags":{"mtktk7c96mtmq8ikv":false,"hvac":false,"spr":false}},{"id":"mtcq59ffxmtmolros","area":"s2","phase":"kollision","fags":["hvac","vvs","el","spr","cu"],"date":"2026-09-17","fagDates":{"hvac":null,"vvs":null,"el":null,"spr":null,"cu":null,"ark":null},"dependsOn":{"mid":"ms5n0uwkwmtmolros","fag":null},"duration":1},{"id":"mapvuws3omtmolros","area":"s2","phase":"opret","fags":["hvac","vvs","spr","mtktk7c96mtmq8ikv"],"date":"2026-09-29","fagDates":{"hvac":"2026-09-18","vvs":"2026-09-18","spr":"2026-09-18","ark":null,"mtktk7c96mtmq8ikv":"2026-09-18"},"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":{"mid":"mtcq59ffxmtmolros","fag":null},"duration":1},"hvac":{"dependsOn":{"mid":"mtcq59ffxmtmolros","fag":null},"duration":1},"spr":{"dependsOn":{"mid":"mtcq59ffxmtmolros","fag":null},"duration":1},"vvs":{"dependsOn":{"mid":"mtcq59ffxmtmolros","fag":null},"duration":1}}},{"id":"mm8brfp61mtmolros","area":"s2","phase":"mlirck4rzmtmom42w","fags":["vvs","el","cu"],"date":"2026-09-22","fagDates":{"ark":null,"vvs":null,"el":null,"cu":null},"dependsOn":{"mid":"mapvuws3omtmolros","fag":null},"duration":2},{"id":"m24bts1fdmtmolros","area":"s2","phase":"mgl22a97umtmotxj5","fags":["hvac","spr","vvs","cu","el"],"date":"2026-10-02","fagDates":{"hvac":"2026-09-28","spr":"2026-09-30","vvs":"2026-09-30","cu":"2026-09-30","el":"2026-10-05"},"fagDeps":{"hvac":{"dependsOn":{"mid":"mm8brfp61mtmolros","fag":null},"duration":4},"spr":{"dependsOn":{"mid":"m24bts1fdmtmolros","fag":"hvac"},"duration":2},"vvs":{"dependsOn":{"mid":"m24bts1fdmtmolros","fag":"hvac"},"duration":2},"cu":{"dependsOn":{"mid":"m24bts1fdmtmolros","fag":"hvac"},"duration":2},"el":{"dependsOn":{"mid":"m24bts1fdmtmolros","fag":"vvs"},"duration":3}}},{"id":"mkwbwt9dtmtmqi0lf","area":"s2","phase":"mibgvuazomtmovdbz","fags":[],"date":"2026-10-07","fagDates":{},"dependsOn":{"mid":"m24bts1fdmtmolros","fag":null},"duration":2},{"id":"m8tna3sh1mtmqiiy1","area":"s2","phase":"mav33xbpymtmoveln","fags":["hvac","spr","vvs","cu","el","m1hzcbdspmtmq8p2x"],"date":null,"fagDates":{"hvac":"2026-10-14","spr":"2026-10-21","vvs":"2026-10-21","cu":"2026-10-21","el":"2026-10-21","m1hzcbdspmtmq8p2x":"2026-10-21"},"fagDeps":{"hvac":{"dependsOn":{"mid":"mkwbwt9dtmtmqi0lf","fag":null},"duration":5},"spr":{"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":"hvac"},"duration":5},"vvs":{"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":"hvac"},"duration":5},"cu":{"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":"hvac"},"duration":5},"el":{"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":"hvac"},"duration":5},"m1hzcbdspmtmq8p2x":{"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":"hvac"},"duration":5}}},{"id":"myshd6fiumtmul2l6","area":"s2","phase":"aflever","fags":[],"date":"2026-10-21","fagDates":{},"dependsOn":{"mid":"m8tna3sh1mtmqiiy1","fag":null},"duration":0},{"id":"mhi6ztxc4mtn1o3a1","area":"s4s5","phase":"klar","fags":["mtktk7c96mtmq8ikv","hvac","spr"],"date":null,"fagDates":{"mtktk7c96mtmq8ikv":"2026-09-21","hvac":"2026-09-22","spr":"2026-09-23"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":null,"duration":0},"hvac":{"dependsOn":{"mid":"mhi6ztxc4mtn1o3a1","fag":"mtktk7c96mtmq8ikv"},"duration":1},"spr":{"dependsOn":{"mid":"mhi6ztxc4mtn1o3a1","fag":"hvac"},"duration":1}}},{"id":"mabvnrpnfmtn1o3a1","area":"s4s5","phase":"kollision","fags":["hvac","vvs","el","spr","cu"],"date":"2026-09-24","fagDates":{"hvac":null,"vvs":null,"el":null,"spr":null,"cu":null},"dependsOn":{"mid":"mhi6ztxc4mtn1o3a1","fag":null},"duration":1,"fagDeps":{}},{"id":"m39xci268mtn1o3a1","area":"s4s5","phase":"opret","fags":["hvac","vvs","spr","mtktk7c96mtmq8ikv"],"date":null,"fagDates":{"hvac":"2026-09-25","vvs":"2026-09-25","spr":"2026-09-25","mtktk7c96mtmq8ikv":"2026-09-25"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":{"mid":"mabvnrpnfmtn1o3a1","fag":null},"duration":1},"hvac":{"dependsOn":{"mid":"mabvnrpnfmtn1o3a1","fag":null},"duration":1},"spr":{"dependsOn":{"mid":"mabvnrpnfmtn1o3a1","fag":null},"duration":1},"vvs":{"dependsOn":{"mid":"mabvnrpnfmtn1o3a1","fag":null},"duration":1}}},{"id":"myd23rwsimtn1o3a1","area":"s4s5","phase":"mlirck4rzmtmom42w","fags":["vvs","el","cu"],"date":"2026-09-29","fagDates":{"vvs":null,"el":null,"cu":null},"dependsOn":{"mid":"m39xci268mtn1o3a1","fag":null},"duration":2,"fagDeps":{}},{"id":"mhegww5tymtn1o3a1","area":"s4s5","phase":"mgl22a97umtmotxj5","fags":["hvac","spr","vvs","cu","el"],"date":null,"fagDates":{"hvac":"2026-10-05","spr":"2026-10-07","vvs":"2026-10-07","cu":"2026-10-07","el":"2026-10-12"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"myd23rwsimtn1o3a1","fag":null},"duration":4},"spr":{"dependsOn":{"mid":"mhegww5tymtn1o3a1","fag":"hvac"},"duration":2},"vvs":{"dependsOn":{"mid":"mhegww5tymtn1o3a1","fag":"hvac"},"duration":2},"cu":{"dependsOn":{"mid":"mhegww5tymtn1o3a1","fag":"hvac"},"duration":2},"el":{"dependsOn":{"mid":"mhegww5tymtn1o3a1","fag":"vvs"},"duration":3}}},{"id":"mv8oznxlhmtn1o3a1","area":"s4s5","phase":"mibgvuazomtmovdbz","fags":[],"date":"2026-10-14","fagDates":{},"dependsOn":{"mid":"mhegww5tymtn1o3a1","fag":null},"duration":2,"fagDeps":{}},{"id":"mtehubu6ymtn1o3a1","area":"s4s5","phase":"mav33xbpymtmoveln","fags":["hvac","spr","vvs","cu","el","m1hzcbdspmtmq8p2x"],"date":null,"fagDates":{"hvac":"2026-10-22","spr":"2026-10-27","vvs":"2026-10-27","cu":"2026-10-27","el":"2026-10-27","m1hzcbdspmtmq8p2x":"2026-10-27"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"mv8oznxlhmtn1o3a1","fag":null},"duration":6},"spr":{"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":"hvac"},"duration":3},"vvs":{"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":"hvac"},"duration":3},"cu":{"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":"hvac"},"duration":3},"el":{"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":"hvac"},"duration":3},"m1hzcbdspmtmq8p2x":{"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":"hvac"},"duration":3}}},{"id":"myrbven0fmtn1o3a1","area":"s4s5","phase":"aflever","fags":[],"date":"2026-10-27","fagDates":{},"dependsOn":{"mid":"mtehubu6ymtn1o3a1","fag":null},"duration":0,"fagDeps":{}},{"id":"m9clmud3lmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"klar","fags":["mtktk7c96mtmq8ikv","hvac","spr"],"date":null,"fagDates":{"mtktk7c96mtmq8ikv":"2026-09-28","hvac":"2026-09-29","spr":"2026-09-30"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":null,"duration":0},"hvac":{"dependsOn":{"mid":"m9clmud3lmtn1psfz","fag":"mtktk7c96mtmq8ikv"},"duration":1},"spr":{"dependsOn":{"mid":"m9clmud3lmtn1psfz","fag":"hvac"},"duration":1}}},{"id":"mdfyhj9iymtn1psfz","area":"mq8vikihamtn1pb0x","phase":"kollision","fags":["hvac","vvs","el","spr","cu"],"date":"2026-10-01","fagDates":{"hvac":null,"vvs":null,"el":null,"spr":null,"cu":null},"dependsOn":{"mid":"m9clmud3lmtn1psfz","fag":null},"duration":1,"fagDeps":{}},{"id":"m8gnbptqtmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"opret","fags":["hvac","vvs","spr","mtktk7c96mtmq8ikv"],"date":null,"fagDates":{"hvac":"2026-10-02","vvs":"2026-10-02","spr":"2026-10-02","mtktk7c96mtmq8ikv":"2026-10-02"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":{"mid":"mdfyhj9iymtn1psfz","fag":null},"duration":1},"hvac":{"dependsOn":{"mid":"mdfyhj9iymtn1psfz","fag":null},"duration":1},"spr":{"dependsOn":{"mid":"mdfyhj9iymtn1psfz","fag":null},"duration":1},"vvs":{"dependsOn":{"mid":"mdfyhj9iymtn1psfz","fag":null},"duration":1}}},{"id":"mbucke2kdmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"mlirck4rzmtmom42w","fags":["vvs","el","cu"],"date":"2026-10-06","fagDates":{"vvs":null,"el":null,"cu":null},"dependsOn":{"mid":"m8gnbptqtmtn1psfz","fag":null},"duration":2,"fagDeps":{}},{"id":"m3oz95ayemtn1psfz","area":"mq8vikihamtn1pb0x","phase":"mgl22a97umtmotxj5","fags":["hvac","spr","vvs","cu","el"],"date":null,"fagDates":{"hvac":"2026-10-12","spr":"2026-10-20","vvs":"2026-10-20","cu":"2026-10-20","el":"2026-10-23"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"mbucke2kdmtn1psfz","fag":null},"duration":4},"spr":{"dependsOn":{"mid":"m3oz95ayemtn1psfz","fag":"hvac"},"duration":6},"vvs":{"dependsOn":{"mid":"m3oz95ayemtn1psfz","fag":"hvac"},"duration":6},"cu":{"dependsOn":{"mid":"m3oz95ayemtn1psfz","fag":"hvac"},"duration":6},"el":{"dependsOn":{"mid":"m3oz95ayemtn1psfz","fag":"vvs"},"duration":3}}},{"id":"mp16h97xwmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"mibgvuazomtmovdbz","fags":[],"date":"2026-10-27","fagDates":{},"dependsOn":{"mid":"m3oz95ayemtn1psfz","fag":null},"duration":2,"fagDeps":{}},{"id":"mr509b94pmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"mav33xbpymtmoveln","fags":["hvac","spr","vvs","cu","el","m1hzcbdspmtmq8p2x"],"date":null,"fagDates":{"hvac":"2026-11-03","spr":"2026-11-06","vvs":"2026-11-06","cu":"2026-11-06","el":"2026-11-06","m1hzcbdspmtmq8p2x":"2026-11-06"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"mp16h97xwmtn1psfz","fag":null},"duration":5},"spr":{"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":"hvac"},"duration":3},"vvs":{"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":"hvac"},"duration":3},"cu":{"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":"hvac"},"duration":3},"el":{"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":"hvac"},"duration":3},"m1hzcbdspmtmq8p2x":{"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":"hvac"},"duration":3}}},{"id":"m66i33h5jmtn1psfz","area":"mq8vikihamtn1pb0x","phase":"aflever","fags":[],"date":"2026-11-06","fagDates":{},"dependsOn":{"mid":"mr509b94pmtn1psfz","fag":null},"duration":0,"fagDeps":{}},{"id":"mbr4qukrumtn1q2o9","area":"spine","phase":"klar","fags":["mtktk7c96mtmq8ikv","hvac"],"date":null,"fagDates":{"mtktk7c96mtmq8ikv":"2026-10-05","hvac":"2026-10-06"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":null,"duration":0},"hvac":{"dependsOn":{"mid":"mbr4qukrumtn1q2o9","fag":"mtktk7c96mtmq8ikv"},"duration":1},"spr":{"dependsOn":{"mid":"mbr4qukrumtn1q2o9","fag":"hvac"},"duration":1}}},{"id":"ml22j9d9hmtn1q2o9","area":"spine","phase":"kollision","fags":["hvac","vvs","el","spr","cu"],"date":"2026-10-07","fagDates":{"hvac":null,"vvs":null,"el":null,"spr":null,"cu":null},"dependsOn":{"mid":"mbr4qukrumtn1q2o9","fag":null},"duration":1,"fagDeps":{}},{"id":"mhhgacry0mtn1q2o9","area":"spine","phase":"opret","fags":["hvac","vvs","mtktk7c96mtmq8ikv"],"date":null,"fagDates":{"hvac":"2026-10-08","vvs":"2026-10-08","mtktk7c96mtmq8ikv":"2026-10-08"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":{"mid":"ml22j9d9hmtn1q2o9","fag":null},"duration":1},"hvac":{"dependsOn":{"mid":"ml22j9d9hmtn1q2o9","fag":null},"duration":1},"spr":{"dependsOn":{"mid":"ml22j9d9hmtn1q2o9","fag":null},"duration":1},"vvs":{"dependsOn":{"mid":"ml22j9d9hmtn1q2o9","fag":null},"duration":1}}},{"id":"m2byudls7mtn1q2o9","area":"spine","phase":"mlirck4rzmtmom42w","fags":["vvs","el","cu"],"date":"2026-10-12","fagDates":{"vvs":null,"el":null,"cu":null},"dependsOn":{"mid":"mhhgacry0mtn1q2o9","fag":null},"duration":2,"fagDeps":{}},{"id":"mve66szqlmtn1q2o9","area":"spine","phase":"mgl22a97umtmotxj5","fags":["hvac","vvs","el"],"date":null,"fagDates":{"hvac":"2026-10-21","vvs":"2026-10-23","el":"2026-10-28"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"m2byudls7mtn1q2o9","fag":null},"duration":7},"spr":{"dependsOn":{"mid":"mve66szqlmtn1q2o9","fag":"hvac"},"duration":2},"vvs":{"dependsOn":{"mid":"mve66szqlmtn1q2o9","fag":"hvac"},"duration":2},"cu":{"dependsOn":{"mid":"mve66szqlmtn1q2o9","fag":"hvac"},"duration":2},"el":{"dependsOn":{"mid":"mve66szqlmtn1q2o9","fag":"vvs"},"duration":3}}},{"id":"md9njhr9xmtn1q2o9","area":"spine","phase":"mibgvuazomtmovdbz","fags":[],"date":"2026-10-30","fagDates":{},"dependsOn":{"mid":"mve66szqlmtn1q2o9","fag":null},"duration":2,"fagDeps":{}},{"id":"mhrn7tendmtn1q2o9","area":"spine","phase":"mav33xbpymtmoveln","fags":["hvac","vvs","el","m1hzcbdspmtmq8p2x"],"date":null,"fagDates":{"hvac":"2026-11-06","vvs":"2026-11-11","el":"2026-11-11","m1hzcbdspmtmq8p2x":"2026-11-11"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"md9njhr9xmtn1q2o9","fag":null},"duration":5},"spr":{"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":"hvac"},"duration":3},"vvs":{"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":"hvac"},"duration":3},"cu":{"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":"hvac"},"duration":3},"el":{"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":"hvac"},"duration":3},"m1hzcbdspmtmq8p2x":{"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":"hvac"},"duration":3}}},{"id":"mn8hs4uzomtn1q2o9","area":"spine","phase":"aflever","fags":[],"date":"2026-11-11","fagDates":{},"dependsOn":{"mid":"mhrn7tendmtn1q2o9","fag":null},"duration":0,"fagDeps":{}},{"id":"mobbrnzj3mtn1q8lj","area":"s1s3","phase":"klar","fags":["mtktk7c96mtmq8ikv","hvac"],"date":null,"fagDates":{"mtktk7c96mtmq8ikv":"2026-10-12","hvac":"2026-10-20"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":null,"duration":0},"hvac":{"dependsOn":{"mid":"mobbrnzj3mtn1q8lj","fag":"mtktk7c96mtmq8ikv"},"duration":6},"spr":{"dependsOn":{"mid":"mobbrnzj3mtn1q8lj","fag":"hvac"},"duration":1}}},{"id":"m3nxgpzmnmtn1q8lj","area":"s1s3","phase":"kollision","fags":["hvac","vvs","el","spr","cu"],"date":"2026-10-21","fagDates":{"hvac":null,"vvs":null,"el":null,"spr":null,"cu":null},"dependsOn":{"mid":"mobbrnzj3mtn1q8lj","fag":null},"duration":1,"fagDeps":{}},{"id":"mapaesh5tmtn1q8lj","area":"s1s3","phase":"opret","fags":["hvac","vvs","mtktk7c96mtmq8ikv"],"date":null,"fagDates":{"hvac":"2026-10-22","vvs":"2026-10-22","mtktk7c96mtmq8ikv":"2026-10-22"},"dependsOn":null,"duration":0,"fagDeps":{"mtktk7c96mtmq8ikv":{"dependsOn":{"mid":"m3nxgpzmnmtn1q8lj","fag":null},"duration":1},"hvac":{"dependsOn":{"mid":"m3nxgpzmnmtn1q8lj","fag":null},"duration":1},"spr":{"dependsOn":{"mid":"m3nxgpzmnmtn1q8lj","fag":null},"duration":1},"vvs":{"dependsOn":{"mid":"m3nxgpzmnmtn1q8lj","fag":null},"duration":1}}},{"id":"mb9k2bcsgmtn1q8lj","area":"s1s3","phase":"mlirck4rzmtmom42w","fags":["vvs","el","cu"],"date":"2026-10-26","fagDates":{"vvs":null,"el":null,"cu":null},"dependsOn":{"mid":"mapaesh5tmtn1q8lj","fag":null},"duration":2,"fagDeps":{}},{"id":"m033kr1tfmtn1q8lj","area":"s1s3","phase":"mgl22a97umtmotxj5","fags":["hvac","vvs","el"],"date":null,"fagDates":{"hvac":"2026-10-30","vvs":"2026-11-03","el":"2026-11-06"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"mb9k2bcsgmtn1q8lj","fag":null},"duration":4},"spr":{"dependsOn":{"mid":"m033kr1tfmtn1q8lj","fag":"hvac"},"duration":2},"vvs":{"dependsOn":{"mid":"m033kr1tfmtn1q8lj","fag":"hvac"},"duration":2},"cu":{"dependsOn":{"mid":"m033kr1tfmtn1q8lj","fag":"hvac"},"duration":2},"el":{"dependsOn":{"mid":"m033kr1tfmtn1q8lj","fag":"vvs"},"duration":3}}},{"id":"m6ouz28e4mtn1q8lj","area":"s1s3","phase":"mibgvuazomtmovdbz","fags":[],"date":"2026-11-10","fagDates":{},"dependsOn":{"mid":"m033kr1tfmtn1q8lj","fag":null},"duration":2,"fagDeps":{}},{"id":"m33sc4yeqmtn1q8lj","area":"s1s3","phase":"mav33xbpymtmoveln","fags":["hvac","vvs","el","m1hzcbdspmtmq8p2x"],"date":null,"fagDates":{"hvac":"2026-11-17","vvs":"2026-11-20","el":"2026-11-20","m1hzcbdspmtmq8p2x":"2026-11-20"},"dependsOn":null,"duration":0,"fagDeps":{"hvac":{"dependsOn":{"mid":"m6ouz28e4mtn1q8lj","fag":null},"duration":5},"spr":{"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":"hvac"},"duration":3},"vvs":{"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":"hvac"},"duration":3},"cu":{"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":"hvac"},"duration":3},"el":{"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":"hvac"},"duration":3},"m1hzcbdspmtmq8p2x":{"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":"hvac"},"duration":3}}},{"id":"mucyujps0mtn1q8lj","area":"s1s3","phase":"aflever","fags":[],"date":"2026-11-20","fagDates":{},"dependsOn":{"mid":"m33sc4yeqmtn1q8lj","fag":null},"duration":0,"fagDeps":{}}],"crossMilestones":[{"id":"mqwlw5sx2mtmpj19g","label":"Aflevering","date":"2026-11-27","description":"Upload til Dalux"},{"id":"m482b320smtmqki40","label":"Efterårsferie","date":"2026-10-12","deadline":false,"dateEnd":"2026-10-18"}],"ui":{"openAccordions":["s2"]},"updatedAt":"2026-09-07T09:23:59.810Z"};
+  var AREAS = state.areas && state.areas.length ? state.areas : [
+    {id:"s2", label:"S2"},
+    {id:"s4s5", label:"S4/S5"},
+    {id:"n1n2", label:"N1/N2"},
+    {id:"spine", label:"Spine / Teknik-etage"},
+    {id:"s1s3", label:"S1/S3"}
+  ];
+  AREAS.forEach(function(a,i){ a.idx = i; });
+  var MONTHS = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
+  var FAG_COLOR_POOL = ["#6B4FA0","#2B8C8C","#2B6CB0","#C4432B","#B7791F","#4F7942","#B5487A","#5C6BC0","#57708C","#7A8B3C"];
+  var SHAPE_POOL = ["circle","square","triangle","diamond","pentagon"];
+  var LABEL_W = 168, TITLE_H = 46, ROW_H = 34;
+  var activeFag = null;
+
+  function esc(str){ return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  var _measureCanvas=null;
+  function textWidth(str, fontSizePx, mono){
+    if(!_measureCanvas) _measureCanvas=document.createElement("canvas");
+    var ctx=_measureCanvas.getContext("2d");
+    var family=mono?"'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace":"'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif";
+    ctx.font="600 "+fontSizePx+"px "+family;
+    return ctx.measureText(String(str||"")).width;
+  }
+  function fagById(id){ return state.fags.find(function(f){ return f.id === id; }); }
+  function fagIdx(id){ for(var i=0;i<state.fags.length;i++){ if(state.fags[i].id===id) return i; } return -1; }
+  function colorForFag(id){ var f=fagById(id); if(f&&f.color) return f.color; var i=fagIdx(id); return i===-1?"var(--muted)":FAG_COLOR_POOL[i%FAG_COLOR_POOL.length]; }
+  function phaseById(id){ return state.phases.find(function(p){ return p.id===id; }); }
+  function isDeadlinePhase(ph){ return !ph || ph.deadline !== false; }
+  function isDeadlineCross(c){ return !c || c.deadline !== false; }
+  function crossHasSpan(c){ var d1=parseDate(c.date), d2=parseDate(c&&c.dateEnd); return !!(d1&&d2&&d2>d1); }
+  function fmtCrossRange(c){ var d1=parseDate(c.date); if(!d1) return ""; if(crossHasSpan(c)) return fmtDanish(d1)+"–"+fmtDanish(parseDate(c.dateEnd)); return fmtDanish(d1); }
+  function shapeForPhase(id){
+    var i=0;
+    for(var k=0;k<state.phases.length;k++){
+      var p=state.phases[k];
+      if(p.id===id) return p.kind==="shared" ? "bar" : SHAPE_POOL[i%SHAPE_POOL.length];
+      if(p.kind!=="shared") i++;
+    }
+    return "circle";
+  }
+  function regularPolygonPoints(cx,cy,r,sides,rotationDeg){
+    var pts=[]; var rot=(rotationDeg||0)*Math.PI/180;
+    for(var i=0;i<sides;i++){ var theta=rot+i*2*Math.PI/sides; pts.push((cx+r*Math.cos(theta)).toFixed(2)+","+(cy+r*Math.sin(theta)).toFixed(2)); }
+    return pts.join(" ");
+  }
+  function shapeMarkup(shape,cx,cy,fillCss){
+    var style="style=\"fill:"+fillCss+"; stroke:var(--surface)\" stroke-width=\"1.6\"";
+    switch(shape){
+      case "square": return "<polygon points=\""+regularPolygonPoints(cx,cy,7.6,4,45)+"\" "+style+" stroke-linejoin=\"round\"/>";
+      case "diamond": return "<polygon points=\""+regularPolygonPoints(cx,cy,8,4,0)+"\" "+style+" stroke-linejoin=\"round\"/>";
+      case "triangle": return "<polygon points=\""+regularPolygonPoints(cx,cy,8,3,-90)+"\" "+style+" stroke-linejoin=\"round\"/>";
+      case "pentagon": return "<polygon points=\""+regularPolygonPoints(cx,cy,7.6,5,-90)+"\" "+style+" stroke-linejoin=\"round\"/>";
+      default: return "<circle cx=\""+cx+"\" cy=\""+cy+"\" r=\"6.4\" "+style+"/>";
+    }
+  }
+  function doneBadgeSvg(cx,cy){
+    return "<circle cx=\""+cx+"\" cy=\""+cy+"\" r=\"5\" style=\"fill:#2f9e44; stroke:var(--surface)\" stroke-width=\"1.2\"/>"
+      + "<path d=\"M"+(cx-2.4)+" "+cy+" l1.6 1.8 l3-3.6\" style=\"fill:none; stroke:#fff\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>";
+  }
+  function parseDate(s){ if(!s) return null; var d=new Date(s+"T00:00:00"); return isNaN(d.getTime())?null:d; }
+  function fmtDanish(d){ return d.getDate()+". "+MONTHS[d.getMonth()]+" "+d.getFullYear(); }
+  function addDays(d,n){ var r=new Date(d); r.setDate(r.getDate()+n); return r; }
+  function daysBetween(a,b){ return Math.round((b-a)/86400000); }
+  function startOfDay(d){ var r=new Date(d); r.setHours(0,0,0,0); return r; }
+  function isWeekend(d){ var dow=d.getDay(); return dow===0||dow===6; }
+  function workdaysBetween(a,b){
+    var sign=1, from=a, to=b;
+    if(b<a){ sign=-1; from=b; to=a; }
+    var count=0; var d=new Date(from);
+    while(d<to){ if(!isWeekend(d)) count++; d=addDays(d,1); }
+    return sign*count;
+  }
+
+  function computeRange(){
+    var dates=[];
+    state.milestones.forEach(function(m){
+      var d=parseDate(m.date); if(d) dates.push(d);
+      if(m.fagDates){ Object.keys(m.fagDates).forEach(function(f){ var dd=parseDate(m.fagDates[f]); if(dd) dates.push(dd); }); }
+    });
+    (state.crossMilestones||[]).forEach(function(m){ var d=parseDate(m.date); if(d) dates.push(d); var d2=parseDate(m.dateEnd); if(d2) dates.push(d2); });
+    var today=startOfDay(new Date());
+    var start,end;
+    if(dates.length===0){ start=today; end=addDays(today,120); }
+    else{
+      var min=new Date(Math.min.apply(null,dates)), max=new Date(Math.max.apply(null,dates));
+      start=addDays(min,-7); end=addDays(max,14);
+      if(start>today){ start=addDays(today,-7); }
+      if(daysBetween(start,end)<42){ end=addDays(start,42); }
+    }
+    return {start:start,end:end};
+  }
+  function isoWeekNumber(d){
+    var date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+    var dayNum=(date.getUTCDay()+6)%7;
+    date.setUTCDate(date.getUTCDate()-dayNum+3);
+    var firstThursday=new Date(Date.UTC(date.getUTCFullYear(),0,4));
+    var diff=date-firstThursday;
+    return 1+Math.round(diff/(7*24*3600*1000));
+  }
+  function genWeekTicks(start,end){
+    var ticks=[];
+    var d=new Date(start); var dow=d.getDay(); var diffToMonday=(dow===0?-6:1-dow);
+    d=addDays(d,diffToMonday);
+    while(d<=end){ if(d>=start) ticks.push({date:new Date(d), week:isoWeekNumber(d)}); d=addDays(d,7); }
+    return ticks;
+  }
+  function genMonthTicks(start,end){
+    var ticks=[];
+    var d2=new Date(start.getFullYear(),start.getMonth(),1);
+    if(d2<start) d2=new Date(d2.getFullYear(),d2.getMonth()+1,1);
+    while(d2<=end){ ticks.push({date:new Date(d2), label:MONTHS[d2.getMonth()]+" "+d2.getFullYear()}); d2=new Date(d2.getFullYear(),d2.getMonth()+1,1); }
+    if(!ticks.length || ticks[0].date>start){ ticks.unshift({date:new Date(start), label:MONTHS[start.getMonth()]+" "+start.getFullYear()}); }
+    return ticks;
+  }
+
+  function renderLegend(){
+    var html="<div class=\"group\"><span class=\"glabel\">Vælg dit fag</span>";
+    html+="<button type=\"button\" class=\"fagchip\" data-fagfilter=\"\" aria-pressed=\""+(activeFag?"false":"true")+"\">Alle fag</button>";
+    state.fags.forEach(function(f){
+      var on=activeFag===f.id;
+      html+="<button type=\"button\" class=\"fagchip\" data-fagfilter=\""+f.id+"\" aria-pressed=\""+(on?"true":"false")+"\" style=\""+(on?("background:"+colorForFag(f.id)+";border-color:"+colorForFag(f.id)):"")+"\">"+esc(f.label)+"</button>";
+    });
+    html+="</div>";
+    html+="<div class=\"group activity-list\"><span class=\"glabel\">Aktivitet</span><ul class=\"activity-items\">";
+    state.phases.forEach(function(p){
+      var mark;
+      if(p.kind==="shared"){
+        var legIsDeadline=isDeadlinePhase(p);
+        mark="<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"20\" style=\"stroke:var(--line-strong)\" stroke-width=\"2.8\" stroke-linecap=\"round\""+(legIsDeadline?"":" stroke-dasharray=\"4,2.6\"")+"/>"+(legIsDeadline?"<polygon points=\""+regularPolygonPoints(12,5,4.5,4,0)+"\" style=\"fill:var(--ink)\"/>":"<circle cx=\"12\" cy=\"5\" r=\"3.4\" style=\"fill:var(--muted)\"/>")+"</svg>";
+      } else {
+        mark="<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\">"+shapeMarkup(shapeForPhase(p.id),12,12,"var(--ink)")+"</svg>";
+      }
+      html+="<li class=\"activity-item\"><div class=\"activity-row\">"+mark+esc(p.label)+"</div>"+(p.description?"<div class=\"activity-desc\">"+esc(p.description)+"</div>":"")+"</li>";
+    });
+    html+="</ul></div>";
+    document.getElementById("legendEl").innerHTML=html;
+  }
+
+  function renderTimeline(){
+    var range=computeRange();
+    var totalWorkdays=Math.max(1,workdaysBetween(range.start,range.end));
+    var pxPerDay=Math.min(30,Math.max(7,1150/totalWorkdays));
+    var totalWidth=Math.round(totalWorkdays*pxPerDay)+50;
+    var totalContentH=AREAS.length*(TITLE_H+state.fags.length*ROW_H);
+    function xOf(date){ return Math.round(workdaysBetween(range.start,date)*pxPerDay); }
+    function laneY(idx){ return TITLE_H+idx*ROW_H+ROW_H/2; }
+    var weekTicks=genWeekTicks(range.start,range.end);
+    var monthTicks=genMonthTicks(range.start,range.end);
+    var today=startOfDay(new Date());
+    var todayInRange=today>=range.start && today<=range.end;
+
+    var CROSS_BASE_TOP=44, CROSS_ROW_STEP=15;
+    var crossWithDates=(state.crossMilestones||[]).filter(function(c){ return parseDate(c.date); });
+    var crossPacked=crossWithDates.map(function(c){
+      var d=parseDate(c.date); var hasSpan=crossHasSpan(c); var x=xOf(d);
+      var width=hasSpan?Math.max(24,xOf(parseDate(c.dateEnd))-x):Math.max(26,textWidth(c.label,10.24,true)+14);
+      return {c:c, d:d, x:x, width:width, hasSpan:hasSpan};
+    });
+    crossPacked.sort(function(a,b){ return a.x-b.x; });
+    var crossRowEndX=[];
+    crossPacked.forEach(function(it){
+      var r=0;
+      while(crossRowEndX[r]!==undefined && it.x<crossRowEndX[r]) r++;
+      crossRowEndX[r]=it.x+it.width+6;
+      it.row=r;
+    });
+    var maxCrossRow=crossPacked.reduce(function(mx,it){ return Math.max(mx,it.row); },0);
+    var rulerH=60+maxCrossRow*CROSS_ROW_STEP;
+
+    var html="";
+    html+="<div class=\"ruler-row\">";
+    html+="<div class=\"corner-cell\">Fag / Dato</div>";
+    html+="<div class=\"ruler-track\" style=\"width:"+totalWidth+"px; height:"+rulerH+"px;\">";
+    weekTicks.forEach(function(t){ var x=xOf(t.date); html+="<div class=\"week-tick\" style=\"left:"+x+"px;\"><div class=\"tline\"></div><div class=\"wlabel\">"+t.week+"</div></div>"; });
+    monthTicks.forEach(function(t){ var x=xOf(t.date); html+="<div class=\"month-tick\" style=\"left:"+x+"px;\"><div class=\"tline\"></div><div class=\"mlabel\">"+esc(t.label)+"</div></div>"; });
+    if(todayInRange){ html+="<div class=\"today-flag\" style=\"left:"+xOf(today)+"px;\">I dag</div>"; }
+    crossPacked.forEach(function(it){
+      var c=it.c, d=it.d;
+      var isDeadline=isDeadlineCross(c);
+      var topPx=CROSS_BASE_TOP-it.row*CROSS_ROW_STEP;
+      var subTxt=esc(fmtCrossRange(c))+" · "+(isDeadline?"tværgående aktivitet, gælder alle områder":"tværgående, fælles hændelse uden individuel deadline");
+      var descAttr=c.description?" data-desc=\""+esc(c.description)+"\"":"";
+      if(it.hasSpan){
+        html+="<div class=\"cross-flag cross-flag-span hit"+(isDeadline?"":" cross-flag-info")+"\" data-fag=\"\" data-name=\""+esc(c.label+(isDeadline?"":" (ikke en fag-deadline)"))+"\" data-sub=\""+subTxt+"\""+descAttr+" style=\"left:"+it.x+"px; width:"+it.width+"px; top:"+topPx+"px;\">"+esc(c.label)+"</div>";
+      } else {
+        html+="<div class=\"cross-flag hit"+(isDeadline?"":" cross-flag-info")+"\" data-fag=\"\" data-name=\""+esc(c.label+(isDeadline?"":" (ikke en fag-deadline)"))+"\" data-sub=\""+subTxt+"\""+descAttr+" style=\"left:"+it.x+"px; top:"+topPx+"px;\">"+esc(c.label)+"</div>";
+      }
+    });
+    html+="</div></div>";
+
+    var gridSvg="<svg width=\""+totalWidth+"\" height=\""+totalContentH+"\">";
+    weekTicks.forEach(function(t){ var x=xOf(t.date); gridSvg+="<line x1=\""+x+"\" y1=\"0\" x2=\""+x+"\" y2=\""+totalContentH+"\" style=\"stroke:var(--line)\" stroke-width=\"1\" stroke-opacity=\"0.4\"/>"; });
+    monthTicks.forEach(function(t){ var x=xOf(t.date); gridSvg+="<line x1=\""+x+"\" y1=\"0\" x2=\""+x+"\" y2=\""+totalContentH+"\" style=\"stroke:var(--line-strong)\" stroke-width=\"1\" stroke-opacity=\"0.6\"/>"; });
+    if(todayInRange){ var tx=xOf(today); gridSvg+="<line x1=\""+tx+"\" y1=\"0\" x2=\""+tx+"\" y2=\""+totalContentH+"\" style=\"stroke:var(--accent)\" stroke-width=\"1.5\" stroke-dasharray=\"3,3\"/>"; }
+    gridSvg+="</svg>";
+    html+="<div class=\"grid-overlay\" style=\"width:"+totalWidth+"px; height:"+totalContentH+"px; top:"+rulerH+"px;\">"+gridSvg+"</div>";
+
+    var crossSvg="<svg width=\""+totalWidth+"\" height=\""+totalContentH+"\">";
+    crossWithDates.forEach(function(c){
+      var x=xOf(parseDate(c.date));
+      var isDeadline=isDeadlineCross(c);
+      var hasSpan=crossHasSpan(c);
+      if(hasSpan){
+        var x2=xOf(parseDate(c.dateEnd));
+        crossSvg+="<rect x=\""+x+"\" y=\"0\" width=\""+(x2-x)+"\" height=\""+totalContentH+"\" style=\"fill:var(--ink)\" fill-opacity=\""+(isDeadline?"0.06":"0.035")+"\"/>";
+        crossSvg+="<line x1=\""+x2+"\" y1=\"0\" x2=\""+x2+"\" y2=\""+totalContentH+"\" style=\"stroke:var(--ink)\" stroke-width=\"1.6\" stroke-dasharray=\""+(isDeadline?"3,2.4":"2,3.5")+"\" stroke-opacity=\""+(isDeadline?"0.55":"0.3")+"\"/>";
+      }
+      crossSvg+="<line x1=\""+x+"\" y1=\"0\" x2=\""+x+"\" y2=\""+totalContentH+"\" style=\"stroke:var(--ink)\" stroke-width=\"1.6\" stroke-dasharray=\""+(isDeadline?"3,2.4":"2,3.5")+"\" stroke-opacity=\""+(isDeadline?"0.55":"0.3")+"\"/>";
+    });
+    crossSvg+="</svg>";
+    html+="<div class=\"cross-overlay\" style=\"width:"+totalWidth+"px; height:"+totalContentH+"px; top:"+rulerH+"px;\">"+crossSvg+"</div>";
+
+    AREAS.forEach(function(area){
+      var areaH=TITLE_H+state.fags.length*ROW_H;
+      html+="<div class=\"area-row\">";
+      html+="<div class=\"area-label\">";
+      html+="<div class=\"area-title\"><span class=\"idx\">"+(area.idx+1)+"</span>"+esc(area.label)+"</div>";
+      state.fags.forEach(function(f){
+        html+="<div class=\"fag-row-label\" data-fag=\""+f.id+"\"><span class=\"fag-dot\" style=\"background:"+colorForFag(f.id)+"\"></span>"+esc(f.label)+"</div>";
+      });
+      html+="</div>";
+
+      var areaMilestones=state.milestones.filter(function(m){ return m.area===area.id; });
+      var svgParts=[];
+      var sharedMarkYByMid={};
+      function depSourcePoint(ref){
+        if(!ref || !ref.mid) return null;
+        var m=areaMilestones.find(function(x){ return x.id===ref.mid; });
+        if(!m) return null;
+        var ph=phaseById(m.phase);
+        if(!ph) return null;
+        if(ref.fag){
+          var d=parseDate((m.fagDates||{})[ref.fag]);
+          if(!d) return null;
+          return {x:xOf(d), y:laneY(fagIdx(ref.fag))};
+        }
+        if(ph.kind==="shared"){
+          var d2=parseDate(m.date);
+          if(!d2) return null;
+          var my=sharedMarkYByMid[m.id];
+          return {x:xOf(d2), y:(my!==undefined?my:yBaseShared)};
+        }
+        var maxD=null, maxFag=null;
+        (m.fags||[]).forEach(function(fid){
+          var dd=parseDate((m.fagDates||{})[fid]);
+          if(dd && (!maxD || dd>maxD)){ maxD=dd; maxFag=fid; }
+        });
+        if(!maxD || !maxFag) return null;
+        return {x:xOf(maxD), y:laneY(fagIdx(maxFag))};
+      }
+
+      var maxIShared=state.fags.length-1;
+      var yBotShared=laneY(maxIShared);
+      var yBaseShared=TITLE_H-12;
+      var sharedList=[];
+      areaMilestones.forEach(function(m){
+        var ph=phaseById(m.phase); var d=parseDate(m.date);
+        if(!ph || ph.kind!=="shared" || !d) return;
+        var w=Math.max(26, textWidth(ph.label,10,false)+11);
+        sharedList.push({ph:ph, d:d, x:xOf(d), width:w, mid:m.id});
+      });
+      sharedList.sort(function(a,b){ return a.x-b.x; });
+      var ROW_GAP=6, ROW_STEP=16, rowEndX=[];
+      sharedList.forEach(function(it){
+        var r=0;
+        while(rowEndX[r]!==undefined && (it.x+8)<rowEndX[r]) r++;
+        rowEndX[r]=it.x+8+it.width+ROW_GAP;
+        it.row=r;
+        sharedMarkYByMid[it.mid]=yBaseShared-r*ROW_STEP;
+      });
+      sharedList.forEach(function(it){
+        var ph=it.ph, d=it.d, x=it.x;
+        var isDeadline=isDeadlinePhase(ph);
+        var markY=yBaseShared-it.row*ROW_STEP;
+        var mObj=areaMilestones.find(function(x2){ return x2.id===it.mid; });
+        if(mObj && mObj.dependsOn){
+          var src=depSourcePoint(mObj.dependsOn);
+          if(src){ svgParts.push("<line x1=\""+src.x+"\" y1=\""+markY+"\" x2=\""+x+"\" y2=\""+markY+"\" style=\"stroke:var(--line-strong)\" stroke-width=\"1.1\"/>"); }
+        }
+        var descAttr2=ph.description?" data-desc=\""+esc(ph.description)+"\"":"";
+        var g="<g class=\"hit\" data-fag=\"\" data-name=\""+esc(ph.label+(isDeadline?" (fælles)":" (fælles, ikke deadline)"))+"\" data-sub=\""+esc(area.label+" · "+fmtDanish(d)+" · "+(isDeadline?"gælder alle fag":"fælles hændelse, ingen individuel deadline"))+"\""+descAttr2+">";
+        g+="<line x1=\""+x+"\" y1=\""+markY+"\" x2=\""+x+"\" y2=\""+yBotShared+"\" style=\"stroke:"+(isDeadline?"var(--line-strong)":"var(--line)")+"\""+(isDeadline?"":" stroke-dasharray=\"5,3\"")+" stroke-width=\"2.6\" stroke-linecap=\"round\"/>";
+        if(isDeadline){
+          g+="<polygon points=\""+regularPolygonPoints(x,markY,5.5,4,0)+"\" style=\"fill:var(--ink); stroke:var(--surface)\" stroke-width=\"1.4\"/>";
+        } else {
+          g+="<circle cx=\""+x+"\" cy=\""+markY+"\" r=\"4.6\" style=\"fill:var(--muted); stroke:var(--surface)\" stroke-width=\"1.4\"/>";
+        }
+        if(mObj && mObj.done){ g+=doneBadgeSvg(x-6, markY-6); }
+        g+="<rect x=\""+(x+8)+"\" y=\""+(markY-7)+"\" width=\""+it.width+"\" height=\"14\" rx=\"4\" style=\"fill:var(--surface); stroke:var(--line)\" stroke-width=\"1\" opacity=\"0.95\"/>";
+        g+="<text x=\""+(x+14)+"\" y=\""+(markY+3)+"\" style=\"fill:"+(isDeadline?"var(--ink)":"var(--muted)")+"; font-family:var(--font-display); font-weight:600"+(isDeadline?"":"; font-style:italic")+"\" font-size=\"10\">"+esc(ph.label)+"</text>";
+        g+="</g>";
+        svgParts.push(g);
+      });
+
+      var tagCandidates=[];
+      state.phases.forEach(function(ph){
+        if(ph.kind==="shared") return;
+        var entries=[];
+        areaMilestones.forEach(function(m){
+          if(m.phase!==ph.id) return;
+          var fd=m.fagDates||{};
+          (m.fags||[]).forEach(function(fid){ var dt=fd[fid]; if(dt) entries.push({fag:fid,date:dt,milestoneId:m.id}); });
+        });
+        if(!entries.length) return;
+        var shape=shapeForPhase(ph.id);
+        var byDate={};
+        entries.forEach(function(e){ (byDate[e.date]=byDate[e.date]||[]).push(e.fag); });
+        var dateKeys=Object.keys(byDate).sort(function(a,b){ return parseDate(a)-parseDate(b); });
+        function idxsFor(arr){ return arr.map(fagIdx).filter(function(v){ return v!==-1; }); }
+        entries.forEach(function(e){
+          var d=parseDate(e.date); var f=fagById(e.fag);
+          if(!f || !d) return;
+          var x=xOf(d), y=laneY(fagIdx(e.fag));
+          var mObj=areaMilestones.find(function(x2){ return x2.id===e.milestoneId; });
+          var fdep=mObj && mObj.fagDeps && mObj.fagDeps[e.fag];
+          if(fdep && fdep.dependsOn){
+            var src=depSourcePoint(fdep.dependsOn);
+            if(src){
+              svgParts.push("<line x1=\""+src.x+"\" y1=\""+y+"\" x2=\""+x+"\" y2=\""+y+"\" style=\"stroke:"+colorForFag(f.id)+"\" stroke-opacity=\"0.7\" stroke-width=\"1.2\"/>");
+              var midx=(src.x+x)/2;
+              var durTxt=(fdep.duration||0)+"d";
+              svgParts.push("<text x=\""+midx+"\" y=\""+(y-4)+"\" text-anchor=\"middle\" style=\"fill:var(--muted); font-family:var(--font-mono)\" font-size=\"8.5\">"+esc(durTxt)+"</text>");
+            }
+          }
+          var others=(byDate[e.date]||[]).filter(function(x2){ return x2!==e.fag; }).map(function(x2){ var of=fagById(x2); return of?of.label:x2; });
+          var eDone=!!(mObj && mObj.doneFags && mObj.doneFags[e.fag]);
+          var sub=area.label+" · "+f.label+(others.length?" (samlet med "+others.join(", ")+")":"")+" · "+fmtDanish(d)+(eDone?" · udført":"");
+          var descAttr3=ph.description?" data-desc=\""+esc(ph.description)+"\"":"";
+          svgParts.push("<g class=\"hit\" data-fag=\""+f.id+"\" data-name=\""+esc(ph.label)+"\" data-sub=\""+esc(sub)+"\""+descAttr3+">"+shapeMarkup(shape,x,y,colorForFag(f.id))+(eDone?doneBadgeSvg(x+5,y+5):"")+"</g>");
+        });
+        var firstIdxs=idxsFor(byDate[dateKeys[0]]);
+        if(firstIdxs.length){
+          var anchorI=Math.min.apply(null,firstIdxs);
+          var lx=xOf(parseDate(dateKeys[0])), ly=laneY(anchorI);
+          var tagLen=Math.max(24, textWidth(ph.label,9,false)+11);
+          tagCandidates.push({x:lx, y:ly, width:tagLen, label:ph.label});
+        }
+      });
+      var TAG_LIFT=13;
+      var tagsByLane={};
+      tagCandidates.forEach(function(t){ (tagsByLane[t.y]=tagsByLane[t.y]||[]).push(t); });
+      Object.keys(tagsByLane).forEach(function(laneKey){
+        var laneTags=tagsByLane[laneKey];
+        laneTags.sort(function(a,b){ return a.x-b.x; });
+        var prevEnd=-Infinity;
+        laneTags.forEach(function(t){
+          var desiredLeft=t.x-t.width/2;
+          var startLeft=Math.max(desiredLeft, prevEnd);
+          t.drawX=startLeft;
+          prevEnd=startLeft+t.width+6;
+        });
+      });
+      tagCandidates.forEach(function(t){
+        var ty=t.y-TAG_LIFT;
+        svgParts.push("<g pointer-events=\"none\"><rect x=\""+t.drawX+"\" y=\""+(ty-7)+"\" width=\""+t.width+"\" height=\"14\" rx=\"4\" style=\"fill:var(--surface); stroke:var(--line)\" stroke-width=\"1\" opacity=\"0.78\"/><text x=\""+(t.drawX+t.width/2)+"\" y=\""+(ty+3)+"\" text-anchor=\"middle\" style=\"fill:var(--muted); font-family:var(--font-display); font-weight:600\" font-size=\"9\">"+esc(t.label)+"</text></g>");
+      });
+
+      html+="<div class=\"area-canvas\" style=\"height:"+areaH+"px;\"><svg width=\""+totalWidth+"\" height=\""+areaH+"\">"+svgParts.join("")+"</svg></div>";
+      html+="</div>";
+    });
+
+    document.getElementById("timelineInner").innerHTML=html;
+    document.getElementById("timelineInner").style.width=(LABEL_W+totalWidth)+"px";
+  }
+
+  function renderMyDeadlines(){
+    var el=document.getElementById("mydeadlinesEl");
+    if(!activeFag){ el.innerHTML=""; el.className=""; return; }
+    var f=fagById(activeFag);
+    if(!f){ el.innerHTML=""; el.className=""; return; }
+    var rows=[];
+    state.milestones.forEach(function(m){
+      var ph=phaseById(m.phase); if(!ph) return;
+      var area=AREAS.find(function(a){ return a.id===m.area; });
+      if(ph.kind==="shared"){
+        if(isDeadlinePhase(ph) && m.date){ rows.push({date:m.date, dateDisplay:fmtDanish(parseDate(m.date)), area:area?area.label:m.area, label:ph.label, tag:"fælles", done:!!m.done}); }
+      } else {
+        var fd=m.fagDates||{};
+        if(fd[activeFag]){ rows.push({date:fd[activeFag], dateDisplay:fmtDanish(parseDate(fd[activeFag])), area:area?area.label:m.area, label:ph.label, tag:null, done:!!(m.doneFags && m.doneFags[activeFag])}); }
+      }
+    });
+    (state.crossMilestones||[]).forEach(function(c){
+      if(isDeadlineCross(c) && c.date){ rows.push({date:c.date, dateDisplay:fmtCrossRange(c), area:"Alle områder", label:c.label, tag:"tværgående", done:false}); }
+    });
+    rows.sort(function(a,b){ return parseDate(a.date)-parseDate(b.date); });
+    var html="<h2>"+esc(f.label)+"s deadlines ("+rows.length+")</h2>";
+    if(!rows.length){
+      html+="<p class=\"hint-text\">Ingen datoer sat endnu for "+esc(f.label)+".</p>";
+    } else {
+      html+="<table><tbody>";
+      rows.forEach(function(r){
+        html+="<tr"+(r.done?" style=\"opacity:0.6\"":"")+"><td style=\"white-space:nowrap; font-family:var(--font-mono);\">"+esc(r.dateDisplay)+"</td><td>"+esc(r.area)+"</td><td>"+(r.done?"<span style=\"text-decoration:line-through\">"+esc(r.label)+"</span>":esc(r.label))+(r.tag?"<span class=\"tag\">"+r.tag+"</span>":"")+(r.done?"<span class=\"tag\" style=\"background:#d3f5df; color:#2f9e44;\">udført</span>":"")+"</td></tr>";
+      });
+      html+="</tbody></table>";
+    }
+    el.innerHTML=html;
+    el.className="mydeadlines";
+  }
+
+  function applyFilter(){
+    var nodes=document.querySelectorAll("[data-fag]");
+    for(var i=0;i<nodes.length;i++){
+      var el=nodes[i];
+      var f=el.getAttribute("data-fag");
+      if(!activeFag || f===""){ el.classList.remove("dimmed"); el.classList.remove("fag-focus"); continue; }
+      if(f===activeFag){ el.classList.remove("dimmed"); el.classList.add("fag-focus"); }
+      else { el.classList.add("dimmed"); el.classList.remove("fag-focus"); }
+    }
+  }
+
+  function hidePopover(){ document.getElementById("popoverEl").hidden=true; }
+  function showPopover(x,y,name,sub,desc){
+    var pop=document.getElementById("popoverEl");
+    document.getElementById("popoverBody").innerHTML="<b>"+esc(name)+"</b><span class=\"pv-line\">"+esc(sub)+"</span>"+(desc?"<span class=\"pv-desc\">"+esc(desc)+"</span>":"");
+    pop.hidden=false;
+    var pw=pop.offsetWidth||240, ph=pop.offsetHeight||70;
+    var left=Math.min(x+10, window.innerWidth-pw-10);
+    var top=Math.min(y+10, window.innerHeight-ph-10);
+    pop.style.left=Math.max(10,left)+"px";
+    pop.style.top=Math.max(10,top)+"px";
+  }
+
+  document.getElementById("legendEl").addEventListener("click", function(e){
+    var chip=e.target.closest("[data-fagfilter]");
+    if(!chip) return;
+    var id=chip.getAttribute("data-fagfilter");
+    activeFag=(id==="")?null:(activeFag===id?null:id);
+    renderLegend();
+    applyFilter();
+    renderMyDeadlines();
+  });
+
+  document.getElementById("timelineInner").addEventListener("click", function(e){
+    var hit=e.target.closest(".hit");
+    if(!hit) return;
+    showPopover(e.clientX,e.clientY, hit.getAttribute("data-name")||"", hit.getAttribute("data-sub")||"", hit.getAttribute("data-desc")||"");
+    e.stopPropagation();
+  });
+  document.getElementById("popoverClose").addEventListener("click", hidePopover);
+  document.addEventListener("click", function(e){
+    if(!e.target.closest(".hit") && !e.target.closest(".popover")) hidePopover();
+  });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") hidePopover(); });
+
+  renderLegend();
+  renderTimeline();
+  renderMyDeadlines();
+})();</script>
+</body>
+</html>
